@@ -12,9 +12,10 @@ const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
 
   const startGame = async () => {
+    // IMPORTANT: Call audio start immediately within the event handler to unlock Mobile Audio
+    await gameAudio.startMusic();
     setGameState('PLAYING');
     setHealth(3);
-    await gameAudio.startMusic();
   };
 
   const toggleMute = () => {
@@ -27,8 +28,9 @@ const App: React.FC = () => {
       setGameState('PAUSED');
       await gameAudio.pauseMusic();
     } else if (gameState === 'PAUSED') {
-      setGameState('PLAYING');
+      // Unlock audio again on resume, just in case
       await gameAudio.startMusic();
+      setGameState('PLAYING');
     }
   };
 

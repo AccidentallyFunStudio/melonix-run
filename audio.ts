@@ -47,9 +47,30 @@ export class AudioController {
   async startMusic() {
     if (!this.ctx) return;
     
-    // Resume context if it was suspended (Pause mechanic)
+    // Resume context if it was suspended (Pause mechanic or Initial Mobile Load)
+    // Critical for Mobile: Always try to resume the context on a user interaction event
     if (this.ctx.state === 'suspended') {
-      await this.ctx.resume();
+      try {
+        await this.ctx.resume();
+      } catch (e) {
+        console.warn("Context resume failed", e);
+      }
+    }
+
+    // iOS/Mobile "Warm up": Play a silent sound to force the audio channel open
+    // This fixes issues where audio remains silent even after resume on some devices (Safari especially)
+    try {
+        const buffer = this.ctx.createBuffer(1, 1, 22050);
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.ctx.destination);
+        if (source.start) {
+            source.start(0);
+        } else if ((source as any).noteOn) {
+            (source as any).noteOn(0);
+        }
+    } catch (e) {
+        console.warn("Audio warm-up failed", e);
     }
 
     if (this.isRunning) return;
@@ -138,6 +159,9 @@ export class AudioController {
   // SFX
   playJump() {
      if (!this.ctx || !this.masterGain) return;
+     // Re-check resume just in case (e.g. if user tabs out and back in)
+     if (this.ctx.state === 'suspended') { this.ctx.resume().catch(() => {}); }
+
      const osc = this.ctx.createOscillator();
      const gain = this.ctx.createGain();
      osc.type = 'square';
@@ -156,6 +180,8 @@ export class AudioController {
 
   playCollect() {
      if (!this.ctx || !this.masterGain) return;
+     if (this.ctx.state === 'suspended') { this.ctx.resume().catch(() => {}); }
+
      const osc = this.ctx.createOscillator();
      const gain = this.ctx.createGain();
      osc.type = 'sine';
@@ -176,6 +202,8 @@ export class AudioController {
 
   playHit() {
      if (!this.ctx || !this.masterGain) return;
+     if (this.ctx.state === 'suspended') { this.ctx.resume().catch(() => {}); }
+
      const osc = this.ctx.createOscillator();
      const gain = this.ctx.createGain();
      osc.type = 'sawtooth';
